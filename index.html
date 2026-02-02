@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafePaste | Secure Local Redactor</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --container-bg: #161b22;
+            --border-color: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-color: #238636;
+            --accent-hover: #2ea043;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { color: #ffffff; margin-bottom: 5px; }
+        .header p { color: var(--text-secondary); font-size: 14px; }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .panel {
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        textarea {
+            flex-grow: 1;
+            min-height: 250px;
+            background-color: #0d1117;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 10px;
+            font-family: monospace;
+            font-size: 13px;
+            resize: vertical;
+            outline: none;
+        }
+
+        textarea:focus { border-color: #58a6ff; }
+
+        .controls {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        /* BUTTON FIX: Specific height and padding to make it shorter */
+        button {
+            padding: 0 20px;
+            height: 40px;
+            border-radius: 6px;
+            border: 1px solid rgba(240, 246, 252, 0.1);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            line-height: 38px; /* Vertically centers text */
+        }
+
+        .btn-primary { background-color: var(--accent-color); color: white; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-secondary { background-color: #21262d; color: var(--text-primary); padding: 0 10px; height: 28px; line-height: 26px; }
+        .btn-secondary:hover { background-color: #30363d; }
+
+        .stats {
+            margin-top: 15px;
+            font-size: 13px;
+            color: var(--accent-color);
+            text-align: center;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>SafePaste</h1>
+        <p>Client-side PII scrubber. Redacts Emails, IPs, Phones, Financials, and Credit Cards.</p>
+    </div>
+
+    <div class="main-container">
+        <div class="panel">
+            <div class="panel-header">
+                <span>INPUT (Unsafe)</span>
+                <button class="btn-secondary" onclick="clearText()">Clear</button>
+            </div>
+            <textarea id="input" placeholder="Paste sensitive text here..."></textarea>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <span>OUTPUT (Safe)</span>
+                <button class="btn-secondary" onclick="copyOutput()">Copy</button>
+            </div>
+            <textarea id="output" readonly placeholder="Clean text will appear here..."></textarea>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-primary" onclick="redactData()">Redact PII & Logs</button>
+        </div>
+    </div>
+
+    <div id="stats" class="stats"></div>
+
+    <script>
+        function redactData() {
+            const input = document.getElementById('input').value;
+            let text = input;
+            let count = 0;
+
+            // 1. IP Addresses
+            text = text.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, function() { count++; return "[IP_ADDRESS]"; });
+
+            // 2. MAC Addresses
+            text = text.replace(/\b([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})\b/g, function() { count++; return "[MAC_ADDRESS]"; });
+
+            // 3. Emails
+            text = text.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, function() { count++; return "[EMAIL]"; });
+
+            // 4. Phones
+            text = text.replace(/(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g, function() { count++; return "[PHONE]"; });
+
+            // 5. Money
+            text = text.replace(/\$\d{1,3}(,\d{3})*(\.\d{2})?/g, function() { count++; return "[AMOUNT]"; });
+
+            // 6. Dates
+            text = text.replace(/\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g, function() { count++; return "[DATE]"; });
+
+            // 7. NEW: Credit Cards (Matches groups of 4 digits)
+            text = text.replace(/\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g, function() { count++; return "[CREDIT_CARD]"; });
+
+            document.getElementById('output').value = text;
+            
+            const stats = document.getElementById('stats');
+            if (count > 0) {
+                stats.innerText = "Successfully redacted " + count + " sensitive data points.";
+                stats.style.color = "#238636";
+            } else {
+                stats.innerText = "No PII detected.";
+                stats.style.color = "#8b949e";
+            }
+        }
+
+        function copyOutput() {
+            const copyText = document.getElementById("output");
+            copyText.select();
+            navigator.clipboard.writeText(copyText.value);
+            document.getElementById('stats').innerText = "Copied to clipboard!";
+        }
+
+        function clearText() {
+            document.getElementById('input').value = '';
+            document.getElementById('output').value = '';
+            document.getElementById('stats').innerText = '';
+        }
+    </script>
+</body>
+</html>
