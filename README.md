@@ -2,7 +2,7 @@
 
 **Stop feeding sensitive data to public LLMs.**
 
-SafePaste is a client-side utility that automatically sanitizes text before you paste it into tools like ChatGPT, Claude, or DeepSeek. It runs 100% in the browser—no data is ever sent to a server.
+SafePaste is a client-side utility that automatically sanitizes text before you paste it into tools like ChatGPT, Claude, or DeepSeek. It runs 100% in the browser, no data is ever sent to a server.
 
 ## Live Demo
 [**Click here to use SafePaste**](https://thelovearinze.github.io/safe-paste/)
